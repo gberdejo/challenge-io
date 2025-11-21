@@ -1,0 +1,112 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: challenge-io-postgres
+    # restart: always
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_DB: challenge_io
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - challenge-network
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: challenge-io-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - challenge-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: challenge-io-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - '9092:9092'
+      - '9093:9093'
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
+    networks:
+      - challenge-network
+
+  kafka-init:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: challenge-io-kafka-init
+    depends_on:
+      - kafka
+    volumes:
+      - ./scripts/kafka-init.sh:/kafka-init.sh
+    entrypoint: [ '/bin/sh', '/kafka-init.sh' ]
+    networks:
+      - challenge-network
+
+  issuer-api:
+    build:
+      context: .
+      dockerfile: apps/issuer-api/Dockerfile
+    container_name: challenge-io-issuer-api
+    depends_on:
+      - postgres
+      - kafka
+      - kafka-init
+    ports:
+      - '3001:3001'
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DATABASE=challenge_io
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=admin123
+      - KAFKA_BROKERS=kafka:29092
+      - KAFKA_CLIENT_ID=challenge-io-issuer
+      - KAFKAJS_NO_PARTITIONER_WARNING=1
+    networks:
+      - challenge-network
+    restart: unless-stopped
+
+  card-processor:
+    build:
+      context: .
+      dockerfile: apps/card-processor/Dockerfile
+    container_name: challenge-io-card-processor
+    depends_on:
+      - postgres
+      - kafka
+      - kafka-init
+    environment:
+      - NODE_ENV=production
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DATABASE=challenge_io
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=admin123
+      - KAFKA_BROKERS=kafka:29092
+      - KAFKA_CLIENT_ID=challenge-io-card-processor
+      - KAFKA_GROUP_ID=card-processor-group
+      - KAFKAJS_NO_PARTITIONER_WARNING=1
+    networks:
+      - challenge-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  challenge-network:
+    driver: bridge

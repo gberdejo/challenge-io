@@ -1,0 +1,62 @@
+### Issue Card - Success (simulateError: false)
+POST http://localhost:3001/cards/issue
+Content-Type: application/json
+
+{
+  "customer": {
+    "documentType": "DNI",
+    "documentNumber": "11654321",
+    "fullName": "Jose Pérez",
+    "age": 25,
+    "email": "example@gmail.com"
+  },
+  "product": {
+    "type": "VISA",
+    "currency": "PEN",
+    "simulateError": false
+  }
+}
+
+###
+
+### Issue Card - With Error (simulateError: true) - Para probar reintentos
+POST http://localhost:3001/cards/issue
+Content-Type: application/json
+
+{
+  "customer": {
+    "documentType": "DNI",
+    "documentNumber": "87654321",
+    "fullName": "Maria Lopez",
+    "age": 30,
+    "email": "maria@example.com"
+  },
+  "product": {
+    "type": "MASTERCARD",
+    "currency": "USD",
+    "simulateError": true
+  }
+}
+
+###
+
+### Issue Card - Otro cliente
+POST http://localhost:3001/cards/issue
+Content-Type: application/json
+
+{
+  "customer": {
+    "documentType": "CE",
+    "documentNumber": "98765432",
+    "fullName": "Carlos Ramirez",
+    "age": 35,
+    "email": "carlos@example.com"
+  },
+  "product": {
+    "type": "AMEX",
+    "currency": "EUR",
+    "simulateError": false
+  }
+}
+
+###
